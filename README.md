@@ -13,6 +13,15 @@ nodes for reading papers, comparing them, and drafting a literature review.
 
 **Open source:** MIT license. Free for anyone to use, copy, and improve.
 
+## Demo
+
+Screenshot of a real literature review run (mock mode, no API key) over the
+4 sample papers — topic "RAG retrieval, evaluation, and agentic workflows",
+showing the run log, per-paper summaries, the comparison (1 agreement,
+2 contradictions, 2 gaps), and the literature review outline with citations:
+
+![Research paper agent literature review: summaries, contradictions, and outline](docs/screenshot-review.png)
+
 ## Quick start
 
 ```bash
