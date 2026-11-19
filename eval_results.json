@@ -1,0 +1,33 @@
+{
+  "mode": "mock",
+  "passed": 5,
+  "total": 5,
+  "graph_ok": true,
+  "results": [
+    {
+      "test": "1. Summarize all papers",
+      "pass": true,
+      "detail": "4 summaries (expected 4); all fields + citations present: True; sources: ['01-rag-retrieval-note.md', '02-rag-evaluation-note.md', '03-agentic-workflows-note.md', '04-self-critique-limits-note.md']"
+    },
+    {
+      "test": "2. Compare: contradictions + gaps found",
+      "pass": true,
+      "detail": "contradictions: ['chunk size for RAG', 'value of self-critique in agents']; gaps: ['human evaluation', 'multilingual documents']; agreements: 1"
+    },
+    {
+      "test": "3. Outline: structured, cited, contradictions covered",
+      "pass": true,
+      "detail": "4 sections; citations all real: True ['01-rag-retrieval-note.md', '02-rag-evaluation-note.md', '03-agentic-workflows-note.md', '04-self-critique-limits-note.md']; contradictions covered: True"
+    },
+    {
+      "test": "4. Q&A chunk size: both sides cited",
+      "pass": true,
+      "detail": "sources: ['01-rag-retrieval-note.md', '02-rag-evaluation-note.md', '03-agentic-workflows-note.md']; answer: Based on the papers:\n- The open question is\nwhich retrieval choices matter most: chunk size, embedding model, or\nre-ranking. [01-rag-retrieval-note.md]\n- It also compares chunk\nsizes, because chunk si..."
+    },
+    {
+      "test": "5. Q&A agents: on-task and cited",
+      "pass": true,
+      "detail": "sources: ['03-agentic-workflows-note.md', '04-self-critique-limits-note.md', '02-rag-evaluation-note.md']; answer: Based on the papers:\n- This note tests an agent with and without a self-critique step on the\nsame set of research-summary tasks. [04-self-critique-limits-note.md]\n- Some tasks need several steps: plan..."
+    }
+  ]
+}

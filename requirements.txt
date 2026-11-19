@@ -1,0 +1,16 @@
+# Core — always needed
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6
+python-dotenv>=1.0
+python-multipart>=0.0.9   # file upload in FastAPI
+
+# Agent — LangGraph state machine (same as Product 2) + LangChain chunking (same as Product 1)
+langgraph>=0.2
+langchain-text-splitters>=0.2
+
+# PDF extraction — pypdf reads the text layer of uploaded PDFs
+pypdf>=4.0
+
+# LLM / embeddings — only used when a key is set (mock mode works without them)
+openai>=1.30

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teja Research Paper Agent — summaries, contradictions, literature review</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, sans-serif; margin: 0; background: #0f172a; color: #e2e8f0; }
+  header { background: linear-gradient(90deg, #2563eb, #f97316); padding: 20px; }
+  header h1 { margin: 0; font-size: 1.4rem; }
+  header p { margin: 4px 0 0; opacity: .9; font-size: .9rem; }
+  main { max-width: 860px; margin: 0 auto; padding: 20px; }
+  #status { font-size: .85rem; color: #94a3b8; margin-bottom: 12px; }
+  section { margin-top: 24px; }
+  h2 { font-size: 1rem; color: #93c5fd; margin-bottom: 8px; }
+  h3 { font-size: .95rem; color: #fdba74; margin: 12px 0 4px; }
+  .card { background: #1e293b; border-radius: 12px; padding: 14px; line-height: 1.55; }
+  .card p { margin: 6px 0; }
+  .card ul { margin: 6px 0; padding-left: 20px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  input[type=text] { flex: 1; min-width: 220px; padding: 12px; border-radius: 10px; border: 1px solid #334155; background: #1e293b; color: #fff; }
+  button { padding: 12px 18px; border-radius: 10px; border: none; background: #f97316; color: #fff; font-weight: 600; cursor: pointer; }
+  button.secondary { background: #2563eb; }
+  button:disabled { opacity: .5; cursor: wait; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .chip { background: #1e293b; border: 1px solid #334155; color: #e2e8f0; padding: 6px 10px; border-radius: 999px; font-size: .8rem; cursor: pointer; }
+  .step { background: #1e293b; border-left: 4px solid #2563eb; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+  .step b { color: #93c5fd; text-transform: capitalize; }
+  .contra { border-left: 4px solid #f97316; }
+  .gap { border-left: 4px solid #eab308; }
+  .agree { border-left: 4px solid #22c55e; }
+  .answer { white-space: pre-wrap; }
+  .meta { font-size: .85rem; color: #94a3b8; }
+  .hidden { display: none; }
+  input[type=file] { color: #94a3b8; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Teja Research Paper Agent</h1>
+  <p>Upload a pile of papers — get per-paper summaries, contradictions and gaps across the pile, and a literature review outline with citations.</p>
+</header>
+<main>
+  <div id="status">Loading…</div>
+
+  <section>
+    <h2>Papers in the collection</h2>
+    <div class="card" id="papers">Loading…</div>
+    <form id="uploadForm" class="row" style="margin-top:10px">
+      <input type="file" id="fileInput" accept=".pdf,.txt,.md" required>
+      <button type="submit" class="secondary" id="uploadBtn">Upload paper</button>
+    </form>
+    <p class="meta">PDFs need a text layer (scanned image PDFs have none). Uploaded papers are included in the next review and Q&amp;A.</p>
+  </section>
+
+  <section>
+    <h2>1 · Run a literature review</h2>
+    <form id="reviewForm" class="row">
+      <input type="text" id="topic" placeholder="e.g. RAG retrieval, evaluation, and agentic workflows" autocomplete="off">
+      <button type="submit" id="reviewBtn">Run review</button>
+    </form>
+    <div class="chips" id="topicChips"></div>
+  </section>
+
+  <section id="logSec" class="hidden"><h2>2 · Run log — every graph step</h2><div id="log"></div></section>
+
+  <section id="sumSec" class="hidden"><h2>3 · Per-paper summaries</h2><div id="summaries"></div></section>
+
+  <section id="compSec" class="hidden"><h2>4 · Comparison — agreements, contradictions, gaps</h2><div id="comparison"></div></section>
+
+  <section id="outlineSec" class="hidden"><h2>5 · Literature review outline</h2><div class="card" id="outline"></div></section>
+
+  <section>
+    <h2>6 · Ask a question about the papers</h2>
+    <form id="askForm" class="row">
+      <input type="text" id="question" placeholder="e.g. What chunk size works best for RAG?" autocomplete="off">
+      <button type="submit" id="askBtn" class="secondary">Ask</button>
+    </form>
+    <div class="chips" id="qChips"></div>
+    <div class="card answer hidden" id="answer" style="margin-top:12px"></div>
+  </section>
+</main>
+<script>
+const statusEl = document.getElementById('status');
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+
+async function loadPapers() {
+  try {
+    const h = await (await fetch('/health')).json();
+    statusEl.textContent = `Mode: ${h.mode} (mock = no API key, runs offline) · ${h.papers} paper(s) loaded · Graph: ${h.graph}`;
+    const p = await (await fetch('/papers')).json();
+    document.getElementById('papers').innerHTML = '<ul>' + p.papers.map(x =>
+      `<li><strong>${esc(x.source)}</strong> — ${esc(x.title)} (${x.chunks} chunks; sections: ${x.sections.join(', ')})</li>`).join('') + '</ul>';
+    const t = await (await fetch('/tasks')).json();
+    const tc = document.getElementById('topicChips');
+    t.topics.forEach(topic => {
+      const c = document.createElement('button');
+      c.className = 'chip'; c.type = 'button'; c.textContent = topic;
+      c.onclick = () => { document.getElementById('topic').value = topic; document.getElementById('reviewForm').requestSubmit(); };
+      tc.appendChild(c);
+    });
+    const qc = document.getElementById('qChips');
+    t.questions.forEach(q => {
+      const c = document.createElement('button');
+      c.className = 'chip'; c.type = 'button'; c.textContent = q;
+      c.onclick = () => { document.getElementById('question').value = q; document.getElementById('askForm').requestSubmit(); };
+      qc.appendChild(c);
+    });
+  } catch (e) { statusEl.textContent = 'Backend not reachable — is it running on port 8002?'; }
+}
+
+document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = document.getElementById('fileInput').files[0];
+  if (!f) return;
+  const btn = document.getElementById('uploadBtn');
+  btn.disabled = true; btn.textContent = 'Uploading…';
+  const fd = new FormData(); fd.append('file', f);
+  const res = await fetch('/upload', { method: 'POST', body: fd });
+  const data = await res.json();
+  if (res.ok) { statusEl.textContent = `Uploaded ${data.filename} — ${data.chunks_indexed} chunks indexed, ${data.total_papers} paper(s) total.`; loadPapers(); }
+  else { statusEl.textContent = 'Upload failed: ' + (data.detail || 'unknown error'); }
+  btn.disabled = false; btn.textContent = 'Upload paper';
+});
+
+document.getElementById('reviewForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const topic = document.getElementById('topic').value.trim();
+  if (!topic) return;
+  const btn = document.getElementById('reviewBtn');
+  btn.disabled = true; btn.textContent = 'Reading papers…';
+  ['logSec','sumSec','compSec','outlineSec'].forEach(id => document.getElementById(id).classList.add('hidden'));
+  try {
+    const data = await (await fetch('/review', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({topic}) })).json();
+    document.getElementById('log').innerHTML = data.log.map(s =>
+      `<div class="step"><b>${s.node}</b> — ${esc(s.detail)}</div>`).join('');
+    const f = data.final;
+    document.getElementById('summaries').innerHTML = f.summaries.map(s => `
+      <div class="card" style="margin-bottom:10px">
+        <h3>${esc(s.title)} <span class="meta">[${esc(s.source)}]</span></h3>
+        <p><strong>Problem:</strong> ${esc(s.problem)}</p>
+        <p><strong>Method:</strong> ${esc(s.method)}</p>
+        <p><strong>Findings:</strong> ${esc(s.findings)}</p>
+        <p><strong>Limitations:</strong> ${esc(s.limitations)}</p>
+        <p><strong>Key claims:</strong></p><ul>${s.key_claims.map(c => `<li>${esc(c)}</li>`).join('')}</ul>
+      </div>`).join('');
+    document.getElementById('comparison').innerHTML =
+      f.comparison.agreements.map(a => `<div class="step agree"><b>Agreement</b> — ${esc(a)}</div>`).join('') +
+      f.comparison.contradictions.map(c => `<div class="step contra"><b>Contradiction: ${esc(c.topic)}</b><br>${esc(c.paper_a)}: “${esc(c.claim_a)}”<br>${esc(c.paper_b)}: “${esc(c.claim_b)}”<br><em>${esc(c.note)}</em></div>`).join('') +
+      f.comparison.gaps.map(g => `<div class="step gap"><b>Gap: ${esc(g.topic)}</b> — ${esc(g.description)} <span class="meta">(mentioned in: ${g.papers_mentioning.join(', ') || 'none'})</span></div>`).join('');
+    document.getElementById('outline').innerHTML =
+      `<h3>${esc(f.outline.title)}</h3><p>${esc(f.outline.introduction)}</p>` +
+      f.outline.sections.map(sec => `<h3>${esc(sec.heading)}</h3><p>${esc(sec.summary)}</p><ul>${sec.key_points.map(p => `<li>${esc(p)}</li>`).join('')}</ul><p class="meta">Cites: ${sec.papers_cited.join(', ')}</p>`).join('') +
+      `<h3>Conclusion</h3><p>${esc(f.outline.conclusion)}</p><p class="meta">All citations: ${f.outline.citations.join(', ')} · Mode: ${f.mode} · Revisions: ${data.revisions} · Critique: ${esc(data.critique)}</p>`;
+    ['logSec','sumSec','compSec','outlineSec'].forEach(id => document.getElementById(id).classList.remove('hidden'));
+  } catch (err) { statusEl.textContent = 'Error running the review: ' + err; }
+  btn.disabled = false; btn.textContent = 'Run review';
+});
+
+document.getElementById('askForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const question = document.getElementById('question').value.trim();
+  if (!question) return;
+  const btn = document.getElementById('askBtn');
+  btn.disabled = true; btn.textContent = 'Asking…';
+  try {
+    const data = await (await fetch('/ask', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({question}) })).json();
+    const el = document.getElementById('answer');
+    el.textContent = data.answer + '\n\nSources: ' + data.sources.map(s => s.source).join(', ') + ' · Mode: ' + data.mode;
+    el.classList.remove('hidden');
+  } catch (err) { statusEl.textContent = 'Error asking: ' + err; }
+  btn.disabled = false; btn.textContent = 'Ask';
+});
+loadPapers();
+</script>
+</body>
+</html>
