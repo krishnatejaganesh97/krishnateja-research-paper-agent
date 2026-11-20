@@ -1,16 +1,18 @@
+# Pinned to the versions tested locally (Python 3.12.3) so a fresh
+# install on Render reproduces the same environment.
 # Core — always needed
-fastapi>=0.110
-uvicorn[standard]>=0.29
-pydantic>=2.6
-python-dotenv>=1.0
-python-multipart>=0.0.9   # file upload in FastAPI
+fastapi==0.165.0
+uvicorn[standard]==0.54.0
+pydantic==2.14.4
+python-dotenv==1.2.4
+python-multipart==0.0.34   # file upload in FastAPI
 
 # Agent — LangGraph state machine (same as Product 2) + LangChain chunking (same as Product 1)
-langgraph>=0.2
-langchain-text-splitters>=0.2
+langgraph==1.2.23
+langchain-text-splitters==1.1.3
 
 # PDF extraction — pypdf reads the text layer of uploaded PDFs
-pypdf>=4.0
+pypdf==7.1.1
 
 # LLM / embeddings — only used when a key is set (mock mode works without them)
-openai>=1.30
+openai==3.56.0

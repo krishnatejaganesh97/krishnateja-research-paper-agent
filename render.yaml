@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: krishnateja-research-paper-agent
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12"
+      # No API key needed: the app runs in mock/demo mode end to end.
+      # To use a real LLM, add OPENAI_API_KEY (or AZURE_OPENAI_*) in the
+      # Render dashboard under Environment — never commit keys.

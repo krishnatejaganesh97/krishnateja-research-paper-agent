@@ -22,6 +22,19 @@ showing the run log, per-paper summaries, the comparison (1 agreement,
 
 ![Research paper agent literature review: summaries, contradictions, and outline](docs/screenshot-review.png)
 
+## Live demo
+
+Deploy this repo on Render as a free web service (the `render.yaml` at the
+repo root already defines it — no code change needed):
+
+**https://krishnateja-research-paper-agent.onrender.com**
+
+Runs in mock mode with no API key. Note: the free tier sleeps after
+15 minutes of inactivity, so the first load after a pause can take
+30–60 seconds while the service wakes up. Uploaded papers are kept
+only in ephemeral storage on the free tier, so they do not survive
+a restart — the 4 sample papers are always there.
+
 ## Quick start
 
 ```bash
