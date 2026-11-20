@@ -28,6 +28,19 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SAMPLE_DIR = BASE_DIR / "data" / "sample_papers"
 UPLOAD_DIR = BASE_DIR / "data" / "uploads"
 
+# Shown wherever sample papers appear (API responses, review output, UI)
+# so nobody mistakes the invented demo notes for real published papers.
+SAMPLE_NOTICE = (
+    "Sample papers are invented demo notes, not real published papers: "
+    "they have no authors, no venue, and no real experimental results. "
+    "Upload real papers to review real work."
+)
+
+
+def is_sample_source(source: str) -> bool:
+    """True if `source` is one of the invented sample notes."""
+    return (SAMPLE_DIR / source).is_file()
+
 SECTION_HEADINGS = ["problem", "method", "findings", "limitations", "key claims"]
 
 STOPWORDS = {

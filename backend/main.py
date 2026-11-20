@@ -74,6 +74,8 @@ def health():
         "graph": "plan -> read_papers -> compare -> draft_outline -> critique -> (revise | finalize)",
         "papers": len(all_papers),
         "paper_sources": [p.source for p in all_papers],
+        "sample_papers_invented": True,
+        "sample_notice": papers.SAMPLE_NOTICE,
     }
 
 
@@ -82,7 +84,9 @@ def list_papers():
     all_papers = papers.load_all_papers()
     return {"papers": [
         {"source": p.source, "title": p.title, "sections": sorted(p.sections.keys()),
-         "chunks": len(p.chunks)} for p in all_papers]}
+         "chunks": len(p.chunks),
+         "invented_sample": papers.is_sample_source(p.source)} for p in all_papers],
+        "sample_notice": papers.SAMPLE_NOTICE}
 
 
 @app.get("/tasks")

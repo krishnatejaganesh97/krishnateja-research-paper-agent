@@ -1,6 +1,6 @@
 # SAMPLE RESEARCH NOTE — Retrieval quality in RAG systems
 
-> This is a short, invented sample note written for the Teja Research Paper
+> This is a short, invented sample note written for the Krishnateja Research Paper
 > Agent demo. It is NOT a real published paper: it has no authors, no venue,
 > and no real experimental results. It exists only so the agent has papers
 > to summarize, compare, and build a literature review from.

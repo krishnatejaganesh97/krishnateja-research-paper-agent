@@ -57,6 +57,7 @@
 
   <section>
     <h2>Papers in the collection</h2>
+    <p class="meta" style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:10px 12px"><strong>Note:</strong> the 4 sample notes below are invented demo notes, not real published papers — no authors, no venue, no real experimental results. Upload real papers to review real work.</p>
     <div class="card" id="papers">Loading…</div>
     <form id="uploadForm" class="row" style="margin-top:10px">
       <input type="file" id="fileInput" accept=".pdf,.txt,.md" required>
@@ -102,7 +103,7 @@ async function loadPapers() {
     statusEl.textContent = `Mode: ${h.mode} (mock = no API key, runs offline) · ${h.papers} paper(s) loaded · Graph: ${h.graph}`;
     const p = await (await fetch('/papers')).json();
     document.getElementById('papers').innerHTML = '<ul>' + p.papers.map(x =>
-      `<li><strong>${esc(x.source)}</strong> — ${esc(x.title)} (${x.chunks} chunks; sections: ${x.sections.join(', ')})</li>`).join('') + '</ul>';
+      `<li><strong>${esc(x.source)}</strong> — ${esc(x.title)} (${x.chunks} chunks; sections: ${x.sections.join(', ')})${x.invented_sample ? ' <em>— invented sample note, not a real paper</em>' : ''}</li>`).join('') + '</ul>';
     const t = await (await fetch('/tasks')).json();
     const tc = document.getElementById('topicChips');
     t.topics.forEach(topic => {
@@ -162,6 +163,7 @@ document.getElementById('reviewForm').addEventListener('submit', async (e) => {
         f.comparison.contradictions.map(c => `<tr><td><strong>${esc(c.topic)}</strong></td><td>${esc(c.paper_a)}: “${esc(c.claim_a)}”</td><td>${esc(c.paper_b)}: “${esc(c.claim_b)}”</td><td><em>${esc(c.note)}</em></td></tr>`).join('') + `</tbody></table>` : '') +
       f.comparison.gaps.map(g => `<div class="step gap"><b>Gap: ${esc(g.topic)}</b> — ${esc(g.description)} <span class="meta">(mentioned in: ${g.papers_mentioning.join(', ') || 'none'})</span></div>`).join('');
     document.getElementById('outline').innerHTML =
+      (data.notice ? `<p class="meta" style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:10px 12px"><strong>Note:</strong> ${esc(data.notice)}</p>` : '') +
       `<h3>${esc(f.outline.title)}</h3><p>${esc(f.outline.introduction)}</p>` +
       f.outline.sections.map(sec => `<h3>${esc(sec.heading)}</h3><p>${esc(sec.summary)}</p><ul>${sec.key_points.map(p => `<li>${esc(p)}</li>`).join('')}</ul><p class="meta">Cites: ${sec.papers_cited.join(', ')}</p>`).join('') +
       `<h3>Conclusion</h3><p>${esc(f.outline.conclusion)}</p><p class="meta">All citations: ${f.outline.citations.join(', ')} · Mode: ${f.mode} · Revisions: ${data.revisions} · Critique: ${esc(data.critique)}</p>`;

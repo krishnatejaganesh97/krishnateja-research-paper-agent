@@ -1,4 +1,4 @@
-# Teja Research Paper Agent — Product 3
+# Krishnateja Research Paper Agent — Product 3
 
 **The problem it solves:** PhD students drown in research papers. Upload a
 pile of papers and this agent summarizes each one (problem, method, findings,
@@ -6,7 +6,7 @@ limitations), compares them across the pile, flags contradictions and gaps,
 and builds an editable literature review outline — with citations to the
 exact source paper for every claim.
 
-This is Product 3 of Teja's learn-by-building plan (Product 1: RAG doc
+This is Product 3 of Krishnateja's learn-by-building plan (Product 1: RAG doc
 chatbot, Product 2: LangGraph agentic workflow). It combines both: Product 1's
 RAG pipeline over paper chunks, and Product 2's LangGraph graph — with new
 nodes for reading papers, comparing them, and drafting a literature review.
@@ -74,7 +74,7 @@ plan -> read_papers -> compare -> draft_outline -> critique --(issues, <2 revisi
 - **critique** — checks the outline: every citation is a real paper, every section cites papers, contradictions are covered. Issues send it back for revision (max 2).
 - **finalize** — validates the whole review against the `ReviewOutput` Pydantic model.
 
-## What Teja learns from this project
+## What Krishnateja learns from this project
 
 1. **RAG over structured documents** — papers have sections, so the agent reads the Findings section for findings instead of treating the paper as one blob.
 2. **PDF extraction** — pypdf turns PDFs into text; scanned image PDFs have no text layer, so the upload endpoint rejects them with a clear error.
@@ -106,6 +106,51 @@ purpose, so you can see the comparison work:
 ```bash
 python backend/eval.py   # 5/5 expected in mock mode; writes eval_results.json
 ```
+
+## Citation integrity — every claim traces to a real paper
+
+A literature review is only useful if every claim can be traced to a
+paper that actually says it. This project enforces that three ways:
+
+1. **Per-point citations in the outline.** Every key point in the
+   generated outline ends with `[<file name>]` tags naming *only* the
+   papers that actually state that point — e.g. "Dense retrieval wins
+   on paraphrased questions" cites only `01-rag-retrieval-note.md`,
+   not the whole section. Section-level `papers_cited` alone is not
+   enough: a reader must be able to trace each individual claim.
+   Contradiction points quote both sides verbatim with both papers
+   cited; gap points cite the papers whose Limitations mention the gap.
+2. **No overbroad agreement claims.** The conclusion used to say "The
+   papers agree that RAG answers must cite their sources" — but only
+   three of the four notes (01, 02, 03) actually say that; note 04
+   never makes the claim. It now names the three agreeing notes
+   explicitly. The critique node enforces the same rule on every run:
+   any agreement sentence in the conclusion must name its papers, any
+   key point without its own citation is sent back for revision, and
+   any contradiction quote that is not a real claim of the paper it
+   names is rejected.
+3. **Invented samples labelled everywhere.** The 4 sample notes are
+   invented demo notes, not real published papers. That is stated in
+   each sample file, in this README, in the UI (banner + per-paper
+   marker), in the `/health` and `/papers` responses, and in every
+   `/review` response (`notice` field, shown above the outline).
+
+Check it yourself — no API key needed, mock mode:
+
+```bash
+python scripts/check_citations.py   # 11/11 expected; exit 0 = all passed
+```
+
+It runs a full review and verifies: outline/section citations are
+real papers; every key point cites a real paper *and* shares content
+words with that paper's text; every section-summary sentence is
+grounded in a cited paper; the introduction states the true paper
+count; conclusion agreement claims name their papers; every
+contradiction quotes a real claim from each named paper; every gap
+traces to papers that mention it; agreements name their papers; every
+summary key claim appears verbatim in its source paper; and the
+invented-sample labelling is present in the README, sample files,
+frontend, and review output.
 
 ## Stretch exercises
 

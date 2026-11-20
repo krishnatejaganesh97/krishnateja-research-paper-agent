@@ -256,7 +256,19 @@ def _llm_compare(summaries: list[dict]) -> Optional[dict]:
 
 # ---------------------------------------------------------------------------
 # Mock outline — one section per theme, built from the summaries.
+#
+# Citation rule (enforced by scripts/check_citations.py and the critique
+# node): every key point ends with [<file name>] tags naming ONLY the
+# papers that actually state that point. A section-level `papers_cited`
+# list is not enough — a reader must be able to trace each individual
+# claim to its source. The conclusion likewise names the papers behind
+# any agreement claim instead of saying "the papers agree".
 # ---------------------------------------------------------------------------
+def _cite(point: str, sources: list[str]) -> str:
+    """Append per-point source tags, e.g. '... [01-rag-retrieval-note.md]'."""
+    return point + " " + " ".join(f"[{s}]" for s in sources)
+
+
 def _mock_outline(topic: str, summaries: list[dict], comparison: dict) -> dict:
     by_source = {s["source"]: s for s in summaries}
 
@@ -272,26 +284,42 @@ def _mock_outline(topic: str, summaries: list[dict], comparison: dict) -> dict:
         theme_section(
             "Retrieval for RAG",
             ["01-rag-retrieval-note.md", "02-rag-evaluation-note.md"],
-            ["Chunk size changes what retrieval can return — and the papers disagree on which size is best.",
-             "Dense retrieval wins on paraphrased questions; keyword retrieval wins on exact terms.",
-             "Re-ranking gives the best supported answers."]),
+            [_cite("Chunk size changes what retrieval can return — and the notes "
+                   "disagree on which size is best.",
+                   ["01-rag-retrieval-note.md", "02-rag-evaluation-note.md"]),
+             _cite("Dense retrieval wins on paraphrased questions; keyword retrieval "
+                   "wins on exact terms.",
+                   ["01-rag-retrieval-note.md"]),
+             _cite("Re-ranking gives the best supported answers.",
+                   ["01-rag-retrieval-note.md"])]),
         theme_section(
             "Evaluating RAG systems",
             ["02-rag-evaluation-note.md"],
-            ["Faithfulness is the measure to track first.",
-             "Citation precision depends on chunk size.",
-             "Every citation should be checked against its passage."]),
+            [_cite("Faithfulness is the measure to track first.",
+                   ["02-rag-evaluation-note.md"]),
+             _cite("Citation precision depends on chunk size.",
+                   ["02-rag-evaluation-note.md"]),
+             _cite("Every citation should be checked against its passage.",
+                   ["02-rag-evaluation-note.md"])]),
         theme_section(
             "Agentic workflows and self-critique",
             ["03-agentic-workflows-note.md", "04-self-critique-limits-note.md"],
-            ["Multi-step agents beat single-shot answers on multi-hop questions.",
-             "The papers disagree on how much self-critique helps.",
-             "Agents cost more per question than single-shot answers."]),
+            [_cite("Multi-step agents beat single-shot answers on multi-hop questions.",
+                   ["03-agentic-workflows-note.md"]),
+             _cite("The notes disagree on how much self-critique helps.",
+                   ["03-agentic-workflows-note.md", "04-self-critique-limits-note.md"]),
+             _cite("Agents cost more per question than single-shot answers.",
+                   ["03-agentic-workflows-note.md"])]),
         theme_section(
             "Contradictions and open questions",
             [s["source"] for s in summaries],
-            [f"{c['topic']}: {c['paper_a']} vs {c['paper_b']}." for c in comparison["contradictions"]]
-            + [f"Gap: {g['topic']} — {g['description']}" for g in comparison["gaps"]]),
+            [_cite(f"Contradiction — {c['topic']}: {c['paper_a']} says "
+                   f"'{c['claim_a']}' vs {c['paper_b']} says '{c['claim_b']}'.",
+                   [c["paper_a"], c["paper_b"]])
+             for c in comparison["contradictions"]]
+            + [_cite(f"Gap — {g['topic']}: {g['description']}",
+                     g["papers_mentioning"])
+               for g in comparison["gaps"]]),
     ]
     return {
         "title": f"Literature review: {topic}",
@@ -301,11 +329,17 @@ def _mock_outline(topic: str, summaries: list[dict], comparison: dict) -> dict:
             "they contradict each other, and what none of them covers."
         ),
         "sections": sections,
+        # "The papers agree" would be wrong here: only 01, 02 and 03 say RAG
+        # answers must cite their sources — 04 never makes that claim. So
+        # the conclusion names the three agreeing notes explicitly.
         "conclusion": (
-            "The papers agree that RAG answers must cite their sources, but they "
-            "disagree on chunk size and on the value of self-critique. The main "
-            "open questions are human evaluation and multilingual documents, "
-            "which no paper in this collection studies."
+            "Three of the four notes — [01-rag-retrieval-note.md], "
+            "[02-rag-evaluation-note.md] and [03-agentic-workflows-note.md] — "
+            "agree that RAG answers must cite their sources "
+            "([04-self-critique-limits-note.md] does not make that claim). "
+            "The notes disagree on chunk size and on the value of self-critique. "
+            "The main open questions are human evaluation and multilingual "
+            "documents, which no note in this collection studies."
         ),
         "citations": [s["source"] for s in summaries],
     }
@@ -324,6 +358,10 @@ def _llm_outline(topic: str, summaries: list[dict], comparison: dict) -> Optiona
             '"papers_cited": ["<file name>"], "key_points": ["..."]}], '
             '"conclusion": "...", "citations": ["<file name>", ...]}\n'
             "Use ONLY the papers below. Cite the file name for every claim. "
+            "End EVERY key point with [<file name>] tags naming ONLY the "
+            "papers that actually state that point — never cite a paper for "
+            "a claim it does not make, and never write 'the papers agree' "
+            "without naming which papers agree. "
             f"Cover the contradictions: {contra or 'none found'}.\n\n"
             f"Topic: {topic}\n\n{context}"
         )
@@ -393,9 +431,18 @@ def draft_node(state: dict) -> dict:
 
 
 def critique_node(state: dict) -> dict:
-    """Check the review. Issues decide whether the graph loops back."""
+    """Check the review. Issues decide whether the graph loops back.
+
+    Besides structure and real citations, this checks citation integrity
+    per claim: every key point must carry its own [<file>] citation to a
+    real paper, every contradiction must quote a real claim from each
+    paper it names, every gap must trace to a paper that mentions it,
+    and any agreement claim in the conclusion must name its papers.
+    """
     outline, summaries = state["outline"], state["summaries"]
     known = {s["source"] for s in summaries}
+    claims_by_source = {s["source"]: " ".join(s.get("key_claims", [])).lower()
+                        for s in summaries}
     issues: list[str] = []
     for cite in outline.get("citations", []):
         if cite not in known:
@@ -408,12 +455,38 @@ def critique_node(state: dict) -> dict:
                 issues.append(f"Section '{sec['heading']}' cites unknown paper [{cite}].")
         if len(sec.get("key_points", [])) < 1:
             issues.append(f"Section '{sec['heading']}' has no key points.")
+        for point in sec.get("key_points", []):
+            cited = re.findall(r"\[([A-Za-z0-9_.\-]+\.(?:md|txt|pdf))\]", point)
+            if not cited:
+                issues.append(f"Key point in '{sec['heading']}' has no citation: {point!r}")
+            for cite in cited:
+                if cite not in known:
+                    issues.append(f"Key point in '{sec['heading']}' cites unknown paper [{cite}].")
     for s in summaries:
         if not s.get("citations"):
             issues.append(f"Summary of [{s['source']}] has no citations.")
         for f in ("problem", "method", "findings", "limitations"):
             if len(s.get(f, "")) < 10:
                 issues.append(f"Summary of [{s['source']}] has an empty '{f}'.")
+    for c in state["comparison"].get("contradictions", []):
+        for paper_key, claim_key in (("paper_a", "claim_a"), ("paper_b", "claim_b")):
+            src, claim = c.get(paper_key, ""), c.get(claim_key, "")
+            if src not in known:
+                issues.append(f"Contradiction on '{c.get('topic')}' names unknown paper [{src}].")
+            elif re.sub(r"\s+", " ", claim.lower()).strip() not in claims_by_source.get(src, ""):
+                issues.append(f"Contradiction on '{c.get('topic')}': the quoted claim "
+                              f"is not a claim of [{src}].")
+    for g in state["comparison"].get("gaps", []):
+        for src in g.get("papers_mentioning", []):
+            if src not in known:
+                issues.append(f"Gap '{g.get('topic')}' mentions unknown paper [{src}].")
+    conclusion = outline.get("conclusion", "")
+    for sent in re.split(r"(?<=[.!])\s+", conclusion):
+        if re.search(r"\bagrees?\b", sent.lower()):
+            named = [c for c in re.findall(r"\[([A-Za-z0-9_.\-]+\.(?:md|txt|pdf))\]", sent)
+                     if c in known]
+            if not named:
+                issues.append(f"Conclusion claims agreement without naming the papers: {sent!r}")
     contra_topics = {c["topic"] for c in state["comparison"].get("contradictions", [])}
     outline_text = " ".join(
         sec["heading"] + " " + sec["summary"] + " " + " ".join(sec["key_points"])
@@ -509,9 +582,19 @@ def run_review(topic: str, paper_objs: Optional[list] = None) -> dict:
         "final": {}, "log": [],
     }
     result = graph.invoke(initial)
+    sample_sources = [p.source for p in objs if papers.is_sample_source(p.source)]
+    notice = ""
+    if sample_sources:
+        if len(sample_sources) == len(objs):
+            notice = ("All papers in this review are invented sample notes. "
+                      + papers.SAMPLE_NOTICE)
+        else:
+            notice = ("These papers in this review are invented sample notes: "
+                      + ", ".join(sample_sources) + ". " + papers.SAMPLE_NOTICE)
     return {
         "topic": topic,
         "mode": llm.detect_mode(),
+        "notice": notice,
         "plan": result.get("plan", []),
         "log": result.get("log", []),
         "revisions": result.get("revisions", 0),
